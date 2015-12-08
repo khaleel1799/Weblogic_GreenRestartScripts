@@ -1,0 +1,48 @@
+#!/bin/sh
+
+if [ ! -f ./VIP_MS.txt ]; then
+    echo "run wlst.sh createWLkey_VIP.py to create key and VIP list. Exit."
+    exit
+fi
+
+ADMIP=$(cat ./VIP_MS.txt | awk -F: '/_ADMIN/ {print $1}')
+
+if [ "$(/sbin/ifconfig -a |grep $ADMIP)" = "" ]; then
+  echo "$ADMIP is not bind to `hostname`."
+  echo "Please log into host with VIP $ADMIP(Admin Server IP) to run $0."
+  exit
+fi
+
+DOMAIN_HOME=$(cd `dirname $0` ;pwd)
+SERVER_NAME=$(basename "$DOMAIN_HOME")_ADMIN
+
+USER_MEM_ARGS="-Xms512m -Xmx512m -Dweblogic.nodemanager.sslHostNameVerificationEnabled=false"
+export USER_MEM_ARGS
+
+JAVA_OPTIONS=""
+export JAVA_OPTIONS
+
+LOG_FILE=$DOMAIN_HOME/servers/$SERVER_NAME/logs/${SERVER_NAME}.out
+[ ! -d `dirname $LOG_FILE` ] && mkdir -p `dirname $LOG_FILE`
+[ -f $LOG_FILE ] && mv -f $LOG_FILE $LOG_FILE`date +%Y%m%d%H%M`
+
+nohup $DOMAIN_HOME/bin/startWebLogic.sh production nodebug noExit >> $LOG_FILE 2>&1 &
+
+echo "Starting WebLogic Admin Server '"$SERVER_NAME"'..."
+
+while true ; do
+  sleep 2
+  if [[  -n `grep 'Server state changed to RUNNING' $LOG_FILE` ]] ; then
+     echo
+     echo "\nAdmin Server has been started successfully."
+     break
+  elif [[ -n `grep 'Server state changed to FORCE_SHUTTING_DOWN' $LOG_FILE` ]] ; then
+     echo
+     echo "Admin Server failed to start."
+     break
+  else
+     echo -n  '.'
+  fi
+done
+
+

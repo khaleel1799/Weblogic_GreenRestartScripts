@@ -1,0 +1,14 @@
+#/bin/sh
+
+DOMAIN_HOME=$(cd `dirname $0` ;pwd)
+
+ADMIN_URL=`cat .url.properties`
+export ADMIN_URL
+
+doExitFlag=false
+export doExitFlag
+
+$DOMAIN_HOME/bin/stopWebLogic.sh
+
+
+

@@ -1,0 +1,44 @@
+#!/bin/sh
+
+DOMAIN_HOME=$(cd `dirname $0` ;pwd)
+
+cd ${DOMAIN_HOME}
+
+
+SERVER_NAME=$(basename "${DOMAIN_HOME}")
+SERVER_HOME=${DOMAIN_HOME}
+BIN_HOME=${DOMAIN_HOME}/bin
+
+LOG_FILE=${SERVER_HOME}/servers/${SERVER_NAME}/logs/${SERVER_NAME}.out
+
+./stop-admin
+
+echo "### Stopping admin server. Please wait"
+i=1
+while [[ -z `grep '<WebLogicServer> <BEA-000236> <Stopping execute threads.>' $LOG_FILE` ]]
+do
+    echo -n "."
+    sleep 2
+    (( i = $i + 1 ))
+    if [[ $i -gt 90 ]]; then
+      kill -9 `ps -ef|grep prdcrc|grep "Dweblogic.Name=$SERVER_NAME"|grep java| awk '{print $2}'`
+      break
+    fi
+done
+
+sleep 2
+cat /dev/null > $LOG_FILE
+
+./start-admin
+echo "### Starting admin server. Please wait"
+i=1
+while [[ -z `grep '<BEA-000360> <Server started in RUNNING mode>' $LOG_FILE` ]]
+do
+    echo -n "."
+    sleep 2
+    if [[ $i -gt 900 ]]; then
+      #echo | mailx -s "[WARNING] Problem to start CRC admin server in 30 minutes. Pleae check." moniter@myco.com
+      exit 1
+    fi
+done
+

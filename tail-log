@@ -1,0 +1,12 @@
+#!/bin/sh
+
+. ./setNodeName.sh $1
+set -x
+
+LOG=$DOMAIN_HOME/servers/$SERVER_NAME/logs/${SERVER_NAME}.log
+
+if [ -f $LOG ]; then
+    tail -f $LOG
+else
+    tail -f  $DOMAIN_HOME/servers/$SERVER_NAME/logs/${DOMAIN_NAME}.log
+fi

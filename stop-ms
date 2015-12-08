@@ -1,0 +1,20 @@
+#!/bin/sh
+
+. ./setNodeName.sh $1
+
+doExitFlag=true
+export doExitFlag
+
+ADMIN_URL=`cat .url.properties`
+export ADMIN_URL
+
+#export JAVA_OPTIONS="-Djava.security.egd=file:/dev/./urandom"
+
+. ${DOMAIN_HOME}/bin/setDomainEnv.sh
+
+export WLST=./runWLST.ksh
+
+$WLST <<EOD
+connect(userConfigFile='./.prodAdmin_ConfigFile.sec',userKeyFile='./.prodAdmin_userKeyFile.sec', url='${ADMIN_URL}')
+shutdown('${SERVER_NAME}', 'Server', 'true', 0, 'true')
+EOD

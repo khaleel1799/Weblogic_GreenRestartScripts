@@ -1,0 +1,61 @@
+#!/bin/sh
+
+# This script can be used in NAS DOMAIN_HOME.
+# When Node Manager failed over to this host, the script will prompt what Node Manager
+# to start.
+
+. bin/setDomainEnv.sh
+
+DOMAIN=$(basename ${DOMAIN_HOME})
+
+NMFILES=$(find nodemanager/${DOMAIN}_MCH[1-9][0-9]/nodemanager.properties -exec grep -l ListenAddress {} \;)
+
+if [ '$NMFILE' = '' ]; then
+    echo "nodemanager/${DOMAIN}_MCH'[1-9][0-9]'/nodemanager.properties NOT found. "
+    echo "Node Manager is NOT set up with WebOps standard for WLS12 .1.3"
+    exit 0
+fi
+
+trap 'rm -f $$.nm' 0 1 2 3 15
+
+for nmfile in $NMFILES; do
+    export `grep ListenAddress $nmfile | grep -v "#"`
+    
+    # Find all IPs that node manager can listen
+    if [ "$(echo $ListenAddress|egrep '[a-z]|[A-Z]')" = "" ]; then
+        VIP=$ListenAddress
+    else
+        VIP=`nslookup $ListenAddress | awk '/Address:/ {print $2}' | tail -1`
+    fi
+    
+    # Match NM listening IP with IP binded on the current server.
+    if [ "$( /sbin/ifconfig -a | grep :$VIP' ' )" != "" ]; then
+      echo $DOMAIN_HOME/$nmfile | sed 's!/nodemanager.properties!!' >> $$.nm
+    fi
+done
+    
+if [ ! -f $$.nm ]; then
+    echo "$ListenAddress is NOT bind on the current host"
+    exit 1
+fi
+
+if [ "$(wc -l $$.nm)" = "1 $$.nm" ]; then
+    NODEMGR_HOME=`cat $$.nm`
+else
+    echo "Node Manager list can be running on this server -"
+    awk '{print NR": "$0}' $$.nm
+    echo
+    read -p "Please select a number to start a Node Manager: " l
+    NODEMGR_HOME=`sed "${l}q;d" $$.nm`
+    if [ "NODEMGR_HOME" = "" ] ; then
+        echo "Please enter a valid number. exit"
+        exit 2
+    fi
+fi
+
+export NODEMGR_HOME
+
+JAVA_OPTIONS="${JAVA_OPTIONS} -Dweblogic.security.SSL.ignoreHostnameVerify=true -Dweblogic.RootDirectory=${DOMAIN_HOME} -DNODEMGR_HOME=${NODEMGR_HOME} "
+export JAVA_OPTION
+
+nohup ${WL_HOME}/server/bin/startNodeManager.sh >> $NODEMGR_HOME/nodemanager.log 2>&1 &

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+. ./setNodeName.sh $1
+set -x
+
+vi $DOMAIN_HOME/servers/${SERVER_NAME}/logs/${SERVER_NAME}.log
