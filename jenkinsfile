@@ -1,5 +1,2 @@
 echo "this is my first jenkins file with all info"
 echo $JAVA_HOME
-java --version
-docker --version
-which java
